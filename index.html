@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0514">
+<title>ARCANA · AI 塔罗占卜</title>
+<style>
+  :root{
+    --bg:#0b0514; --panel:rgba(44,17,70,.28); --line:rgba(207,178,124,.32);
+    --gold:#cfb27c; --gold-soft:rgba(207,178,124,.6); --cream:#f2ead8; --mist:#b9a8c9;
+    --deep:#150825;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(140% 90% at 50% -10%, #2c1146 0%, #150825 55%, #0b0514 100%);
+    color:var(--cream);
+    font-family:"Songti SC","STSong","SimSun","Noto Serif SC",serif;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  #app{max-width:480px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column;
+    padding:calc(env(safe-area-inset-top,0px) + 16px) 20px calc(env(safe-area-inset-bottom,0px) + 16px);}
+  .en{font-family:Georgia,"Times New Roman",serif}
+  .stars{position:fixed;inset:0;pointer-events:none;z-index:0}
+  .screen{flex:1;display:flex;flex-direction:column;animation:fadeUp .45s ease both;position:relative;z-index:1}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  @keyframes glow{0%,100%{opacity:.5}50%{opacity:1}}
+  .brand{font-size:13px;letter-spacing:.55em;color:var(--gold-soft);text-align:center}
+  .orn{display:flex;align-items:center;gap:10px;color:var(--gold-soft);justify-content:center;margin:14px 0;font-size:10px;letter-spacing:.3em}
+  .orn::before,.orn::after{content:"";height:1px;width:56px;background:linear-gradient(90deg,transparent,var(--line));}
+  .orn::after{background:linear-gradient(90deg,var(--line),transparent)}
+  h1.title{font-size:34px;font-weight:400;text-align:center;letter-spacing:.06em;margin-top:6px;color:var(--cream)}
+  .subtitle{text-align:center;color:var(--mist);font-size:12.5px;margin-top:10px;letter-spacing:.12em}
+  textarea,.field{
+    width:100%;background:rgba(21,8,37,.6);border:1px solid var(--line);border-radius:10px;
+    color:var(--cream);font:inherit;font-size:14.5px;padding:13px 14px;outline:none;resize:none;
+    transition:border-color .3s;
+  }
+  textarea:focus,.field:focus{border-color:var(--gold)}
+  textarea::placeholder,.field::placeholder{color:rgba(185,168,201,.45)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .chip{font-size:11px;padding:6px 13px;border:1px solid var(--line);border-radius:99px;color:var(--mist);
+    background:transparent;letter-spacing:.06em;transition:all .25s}
+  .chip.on{color:var(--deep);background:var(--gold);border-color:var(--gold)}
+  .btn{width:100%;padding:14px;border:none;border-radius:10px;font:inherit;font-size:15px;letter-spacing:.28em;
+    background:linear-gradient(135deg,#e2c98f,#c9a75f);color:#241205;cursor:pointer;margin-top:18px;
+    box-shadow:0 8px 24px rgba(201,167,95,.25);transition:transform .15s,opacity .3s}
+  .btn:active{transform:scale(.98)}
+  .btn.ghost{background:transparent;color:var(--gold);border:1px solid var(--line);box-shadow:none}
+  .btn.small{padding:10px;font-size:12.5px;letter-spacing:.2em;margin-top:12px}
+  .linkbar{display:flex;justify-content:center;gap:26px;margin-top:26px}
+  .linkbar button{background:none;border:none;color:var(--mist);font:inherit;font-size:12px;letter-spacing:.15em;
+    border-bottom:1px solid transparent;padding-bottom:2px}
+  /* spread list */
+  .spread{display:flex;gap:14px;align-items:center;background:var(--panel);border:1px solid rgba(207,178,124,.18);
+    border-radius:12px;padding:15px;margin-bottom:12px;cursor:pointer;transition:border-color .3s}
+  .spread:active{border-color:var(--gold)}
+  .spread svg{flex:none}
+  .spread .nm{font-size:15.5px;letter-spacing:.08em}
+  .spread .nm i{font-style:normal;font-size:10px;color:var(--gold-soft);margin-left:8px;letter-spacing:.12em}
+  .spread .ds{font-size:11.5px;color:var(--mist);margin-top:5px;line-height:1.6}
+  .optrow{display:flex;gap:8px;margin-top:10px}
+  /* draw screen */
+  .drawhead{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--mist);letter-spacing:.1em}
+  .progress{color:var(--gold)}
+  .boardwrap{flex:1;display:flex;align-items:center;width:100%;min-height:0}
+  .board{position:relative;width:100%;margin:8px 0}
+  .slot{position:absolute;transform:translate(-50%,-50%)}
+  .card3d{perspective:700px;position:relative;width:100%;height:100%}
+  .cinner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .75s cubic-bezier(.4,.1,.2,1)}
+  .card3d.flip .cinner{transform:rotateY(180deg)}
+  .cf{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:7px;overflow:hidden}
+  .cf.face{transform:rotateY(180deg);background:#f4ecdd;border:1px solid #d8c9a5;box-shadow:0 10px 22px rgba(0,0,0,.5)}
+  .cf.face img{width:100%;height:100%;object-fit:cover;display:block}
+  .cf.face img.rev{transform:rotate(180deg)}
+  .cf.face.noface img{display:none}
+  .cffall{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;
+    color:#4a3a20;gap:6px;padding:8px;text-align:center}
+  .cf.face.noface .cffall{display:flex}
+  .cffall .fn{font-size:12px;letter-spacing:.1em}
+  .cffall .fe{font-size:8px;opacity:.6;letter-spacing:.2em}
+  .cffall .fs{font-size:22px}
+  .back{background:radial-gradient(120% 90% at 50% 0%,#2c1146 0%,#150825 62%,#0d0418 100%);
+    border:1px solid rgba(207,178,124,.55);box-shadow:0 10px 22px rgba(0,0,0,.5),inset 0 0 0 3px rgba(8,3,14,.9),inset 0 0 0 4px rgba(207,178,124,.32)}
+  .back::before{content:"✶";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:rgba(207,178,124,.7);font-size:clamp(14px,22cqw,26px)}
+  .back::after{content:"";position:absolute;inset:14%;border:1px solid rgba(207,178,124,.35);border-radius:4px;
+    background:radial-gradient(circle at 50% 50%,rgba(207,178,124,.16),transparent 65%)}
+  .cinner{container-type:inline-size}
+  .deal .cinner{animation:deal .55s ease both}
+  @keyframes deal{from{transform:translateY(46vh) scale(.6);opacity:.4}60%{opacity:1}to{transform:none;opacity:1}}
+  .lit::after{content:"";position:absolute;inset:-14px;border-radius:12px;
+    box-shadow:0 0 26px rgba(226,201,143,.4);animation:glow 2.2s ease infinite;pointer-events:none}
+  .deckwrap{margin-top:auto;padding-top:14px}
+  .deckhint{text-align:center;font-size:10px;color:var(--mist);letter-spacing:.2em;margin-bottom:8px}
+  .deck{display:flex;overflow-x:auto;padding:18px 8px 8px;scrollbar-width:none;gap:0;scroll-snap-type:x proximity}
+  .deck::-webkit-scrollbar{display:none}
+  .deck .dcard{flex:none;width:56px;height:88px;margin:0 -3px;position:relative;scroll-snap-align:center;cursor:pointer;transition:transform .2s}
+  .deck .dcard:active{transform:translateY(-10px)}
+  .deck .dcard .back{position:absolute;inset:0;border-radius:6px;animation:glow 3s ease infinite}
+  /* reveal */
+  .poslist{margin-top:8px;padding-bottom:78px}
+  .positem{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid rgba(207,178,124,.12);font-size:12.5px;align-items:baseline}
+  .positem b{color:var(--gold);font-weight:400;letter-spacing:.1em;flex:none}
+  .positem span{color:var(--mist)}
+  .stickybar{position:sticky;bottom:0;padding:14px 0 4px;background:linear-gradient(180deg,transparent,rgba(11,5,20,.95) 40%)}
+  /* reading */
+  .sec{margin-top:20px}
+  .sec h3{font-size:11px;color:var(--gold);letter-spacing:.3em;font-weight:400;display:flex;align-items:center;gap:10px}
+  .sec h3::after{content:"";flex:1;height:1px;background:rgba(207,178,124,.18)}
+  .sec p{font-size:13.5px;line-height:1.95;color:rgba(242,234,216,.86);margin-top:9px;text-align:justify}
+  .rccard{display:flex;gap:12px;margin-top:12px;align-items:flex-start}
+  .rccard .thumb{flex:none;width:52px;border-radius:5px;overflow:hidden;border:1px solid var(--line)}
+  .rccard .thumb img{width:100%;display:block}
+  .rccard .thumb img.rev{transform:rotate(180deg)}
+  .rccard .tt{font-size:12.5px;color:var(--gold);letter-spacing:.08em}
+  .rccard .tx{font-size:12px;line-height:1.8;color:rgba(242,234,216,.75);margin-top:5px;text-align:justify}
+  .note{font-size:10.5px;color:var(--mist);opacity:.75;letter-spacing:.05em;margin-top:18px;line-height:1.7}
+  .actions li{font-size:13px;line-height:1.9;color:rgba(242,234,216,.86);margin:7px 0 0 0;list-style:none;padding-left:16px;position:relative}
+  .actions li::before{content:"·";position:absolute;left:2px;color:var(--gold)}
+  .oneliner{margin:22px 0 8px;padding:16px;border:1px solid var(--line);border-radius:10px;text-align:center;
+    font-size:14px;line-height:1.9;color:var(--gold);letter-spacing:.05em;background:rgba(207,178,124,.06)}
+  /* chat */
+  .msgs{flex:1;overflow-y:auto;padding:6px 0;display:flex;flex-direction:column;gap:12px}
+  .msg{max-width:86%;padding:11px 14px;border-radius:12px;font-size:13px;line-height:1.85;white-space:pre-wrap}
+  .msg.user{align-self:flex-end;background:rgba(207,178,124,.16);border:1px solid rgba(207,178,124,.25)}
+  .msg.bot{align-self:flex-start;background:var(--panel);border:1px solid rgba(207,178,124,.15);color:rgba(242,234,216,.9);text-align:justify}
+  .chatbar{display:flex;gap:10px;padding-top:12px}
+  .chatbar input{flex:1}
+  .chatbar button{flex:none;width:64px;border-radius:10px;border:none;background:linear-gradient(135deg,#e2c98f,#c9a75f);
+    color:#241205;font:inherit;font-size:13px;letter-spacing:.15em}
+  /* history */
+  .hitem{background:var(--panel);border:1px solid rgba(207,178,124,.18);border-radius:12px;padding:14px 16px;margin-bottom:10px;cursor:pointer}
+  .hitem .hq{font-size:13.5px;line-height:1.7}
+  .hitem .hm{font-size:10.5px;color:var(--mist);margin-top:6px;display:flex;justify-content:space-between;letter-spacing:.06em}
+  .empty{text-align:center;color:var(--mist);font-size:12.5px;letter-spacing:.15em;padding:60px 0;line-height:2}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .topbar .backlink{background:none;border:none;color:var(--mist);font:inherit;font-size:12px;letter-spacing:.15em;padding:4px 0}
+  .topbar .tt{font-size:12px;color:var(--gold);letter-spacing:.3em}
+</style>
+</head>
+<body>
+<div class="stars" id="stars"></div>
+<div id="app"></div>
+<script>
+/* ============ 数据 ============ */
+const CARDS = [{"id":"major-00","name":"愚人","en":"The Fool","arcana":"major","suit":"major","element":"风","up":"一段尚未被定义的新旅程正在展开。你被一种纯粹的、近乎孩子气的冲动推动，愿意在信息不完整时先迈出一步。此时的未知不是威胁，而是尚未被书写的空间。","rev":"冲动和逃避正在被混淆。你可能用「随心而行」来掩盖尚未准备好的事实，或者反过来，因为害怕而迟迟不肯踏出那一步。风险在于既没有计划，也没有真正的信任。","core":"未经计算的开始","axis":"自由与风险的边界","advice":"给冲动加一个可回收的支点：先做最小的一步试探，而不是全部押上。","kup":["开始","自由","直觉","冒险"],"krev":["莽撞","逃避","准备不足"]},{"id":"major-01","name":"魔术师","en":"The Magician","arcana":"major","suit":"major","element":"风","up":"你手上的资源比你以为的更齐备。想法、语言、人脉与时机已经可以对上，关键在于主动把它们组合起来，而不是继续等待更好的条件。","rev":"能量被误用。可能是承诺大于能力，也可能是被人用漂亮的话术牵动；同样可能指向你自己：准备了很多，却没有真正开始。","core":"把潜能变成现实的动作","axis":"意图与执行之间","advice":"把「我打算」换成「我今天做了」——只推进一件能交付的小事。","kup":["行动力","资源整合","表达","显化"],"krev":["操控","空谈","能力错配"]},{"id":"major-02","name":"女祭司","en":"The High Priestess","arcana":"major","suit":"major","element":"水","up":"答案还没有到能说出口的时候，但它已经在你的感觉里。此时更适合观察、记录、等待，而不是逼对方表态或逼自己下结论。","rev":"你在用噪音盖住直觉。要么是有人在刻意保留信息，要么是你自己不愿承认已经感觉到的东西。秘密正在消耗关系的透明度。","core":"尚未被说出的内在知识","axis":"表相与真相之间","advice":"把感觉写下来，先不解释；三天后再看，你会更清楚哪部分是直觉。","kup":["直觉","潜意识","未揭示的真相","静观"],"krev":["自我怀疑","信息隐瞒","与内心失联"]},{"id":"major-03","name":"皇后","en":"The Empress","arcana":"major","suit":"major","element":"土","up":"一种丰盈的能量正在支持你：被善待、被滋养，或者你正在创造某种能自然生长的事物。它鼓励你从身体和感受出发，而非从效率出发。","rev":"滋养失衡。你可能把照顾别人当作存在的理由，忽略了自己的需求；也可能因为过度保护，让某段关系失去了生长的空间。","core":"滋养与丰盛的循环","axis":"给予与自我保存","advice":"先补给自己：睡好、吃好、把一件让你愉悦的事排进日程。","kup":["丰盛","滋养","创造力","身体感受"],"krev":["过度付出","依赖","创造力停滞"]},{"id":"major-04","name":"皇帝","en":"The Emperor","arcana":"major","suit":"major","element":"火","up":"现在需要结构与边界。把事情说清楚、把规则定下来、把责任归属讲明白，反而是对人最温柔的做法。","rev":"控制欲正在替代安全感。可能是对方用规则压你，也可能是你用强硬掩饰不安。过度的秩序会让关系变成一个只讲对错的场所。","core":"秩序、权力与边界","axis":"掌控与放手","advice":"把「必须」改成「我选择」，先确认这条规矩是保护还是防御。","kup":["秩序","边界","权威","责任"],"krev":["控制","僵化","父权压力"]},{"id":"major-05","name":"教皇","en":"The Hierophant","arcana":"major","suit":"major","element":"土","up":"你正在面对一套既有的规则：家庭期待、社会标准、行业惯例，或一段关系里「应该怎样」的默认设定。它提供稳定，也提供束缚。","rev":"你开始质疑那套被教给你的答案。可能是信仰体系松动，也可能是你厌倦了只在形式上符合期待——比如维持一段只有名分的关系。","core":"被继承的规则与信念","axis":"遵循与反叛","advice":"分辨哪些规则是你真心认同的，哪些只是为了不被评价而遵守。","kup":["传统","规范","信念体系","承诺"],"krev":["教条","形式主义","价值冲突"]},{"id":"major-06","name":"恋人","en":"The Lovers","arcana":"major","suit":"major","element":"风","up":"这是一次真正的相遇，也是一次真正的选择。吸引是真实的，但更重要的是：你们在重要的事情上是否站在同一边。","rev":"选择被推迟，或者选择已经做出却不愿承认。价值观的裂缝正在显现，第三方的干扰（人、事、旧关系）也让投入变得不纯粹。","core":"吸引与价值的选择","axis":"欲望与一致","advice":"把「我想要他」换成「我们能不能在关键问题上同频」，答案会清晰很多。","kup":["吸引","选择","价值一致","结合"],"krev":["犹豫","价值不合","诱惑与背离"]},{"id":"major-07","name":"战车","en":"The Chariot","arcana":"major","suit":"major","element":"水","up":"势头在你这边，但需要你把方向盘握稳。两只相反的兽代表互相冲突的动机——它们不会自己协调，只有你的意志能让它们同向。","rev":"你在用力，却没有方向。可能是同时想抓住两个相反的东西，也可能是被情绪牵着走。再加速只会离目标更远。","core":"意志对方向的掌控","axis":"推进与内耗","advice":"先停一天，把目标写成一句可验证的话，再决定要不要继续踩油门。","kup":["意志","推进","自我掌控","胜利"],"krev":["失控","方向不明","内耗"]},{"id":"major-08","name":"力量","en":"Strength","arcana":"major","suit":"major","element":"火","up":"真正的力量在这里不是压制，而是安抚。你有能力面对自己的野性、恐惧和欲望，不用靠强硬也能让局面稳定下来。","rev":"你正在用压抑换取平静。表面没有冲突，但情绪在暗处累积；或者相反，你已经被情绪牵着走，却说不出为什么。","core":"以柔克刚的内在力量","axis":"驯服与压抑","advice":"承认「我其实很在意」，比假装不在意更有力量。","kup":["温柔的坚定","耐心","驯服本能","勇气"],"krev":["自我怀疑","压抑","被情绪支配"]},{"id":"major-09","name":"隐士","en":"The Hermit","arcana":"major","suit":"major","element":"土","up":"这段关系或这件事需要你退后一步，独自看清楚。答案不在更多的对话里，而在你安静下来的那几个小时里。","rev":"独处变成了躲藏。你可能已经太久没有和外界交换信息，也可能把所有问题都归因于自己，越思考越封闭。","core":"退后一步的清醒","axis":"独处与孤立","advice":"给自己一个明确的独处期限，然后带着结论回到人群里。","kup":["独处","内省","寻找意义","求教"],"krev":["孤立","逃避人群","过度自我审查"]},{"id":"major-10","name":"命运之轮","en":"Wheel of Fortune","arcana":"major","suit":"major","element":"火","up":"局势正在转动，而你无法完全控制方向。好消息是：轮子向上了。此刻顺势比用力更重要，抓住出现的那个窗口。","rev":"你在同一个循环里打转。相似的情节反复出现，说明结构性的东西没有改变——换人不换模式，结果仍会重复。","core":"周期与转折点","axis":"顺势与执拗","advice":"找出这次与上次「一模一样」的那个环节，只改这一处。","kup":["转折","周期","时机","命运推动"],"krev":["停滞","重复循环","时机未到"]},{"id":"major-11","name":"正义","en":"Justice","arcana":"major","suit":"major","element":"风","up":"事情需要一次诚实的结算。谁付出多少、谁该承担什么，都到了该摊开来讲的时候。理性的判断会带来长期的稳定。","rev":"天平倾斜了。可能是有人不愿承担责任，也可能是你在用「公平」要求一个本就失衡的局面。回避真相只会让代价延后。","core":"因果与权衡","axis":"公平与偏私","advice":"把事实与感受分两栏写下来，先处理事实那一栏。","kup":["公平","因果","权衡","诚实"],"krev":["失衡","逃避责任","偏见"]},{"id":"major-12","name":"倒吊人","en":"The Hanged Man","arcana":"major","suit":"major","element":"水","up":"此刻的停滞不是失败，而是一次被要求的暂停。倒过来看，你会发现一直执着的那个点，其实可以不那么重要。","rev":"你在等待，但等待已经失去意义。这可能是一种自我牺牲的表演，也可能是你不愿意承认某件事已经结束。","core":"视角的反转与等待","axis":"等待与拖延","advice":"问自己：如果三个月后还是这样，我还愿意等吗？","kup":["暂停","换个视角","自愿的等待","放下"],"krev":["徒劳的牺牲","拖延","不肯松手"]},{"id":"major-13","name":"死神","en":"Death","arcana":"major","suit":"major","element":"水","up":"某个阶段确实结束了。这不是惩罚，而是为了让新的东西有位置。真正的痛苦往往不是结束本身，而是不肯承认它已经结束。","rev":"你在拖着一个已经死去的东西往前走。可能是关系的形式、旧的自我形象，或一份早该放下的期待。","core":"结束与转化","axis":"告别与执留","advice":"为这段结束做一个具体的仪式：删掉、丢掉、写一封不寄出的信。","kup":["结束","转化","断舍离","重生"],"krev":["抗拒改变","未了的告别","停滞"]},{"id":"major-14","name":"节制","en":"Temperance","arcana":"major","suit":"major","element":"火","up":"答案是「恰到好处」，不是「更多」或「全部」。两种看似对立的东西可以共存，只要找到合适的配比与节奏。","rev":"配比失调。可能是一头热一头冷，也可能是你在用极端的方式解决需要耐心的问题。身体会先给出信号。","core":"调和与适度","axis":"极端与中道","advice":"把投入调成可持续的强度：能坚持三个月的量，才是对的量。","kup":["平衡","调和","节奏","疗愈"],"krev":["失衡","极端","急躁"]},{"id":"major-15","name":"恶魔","en":"The Devil","arcana":"major","suit":"major","element":"土","up":"有一段关系或一种习惯正在绑住你，但锁链其实是松的。你留下来，是因为它给了你某种真实的好处——安全感、快感、或免于面对自己。","rev":"你开始看清那个钩子。觉察本身就是松绑的开始；接下来需要的是一次具体的、可见的切断动作。","core":"欲望与束缚","axis":"沉溺与自由","advice":"写下这段关系给你的「好处」，你会明白自己真正舍不得的是什么。","kup":["执着","欲望","束缚","阴影"],"krev":["觉察","松绑","挣脱"]},{"id":"major-16","name":"高塔","en":"The Tower","arcana":"major","suit":"major","element":"火","up":"一件建立在不稳地基上的东西正在被拆掉。它来得突然、不体面，但拆掉的确实是需要拆的部分。","rev":"崩塌被延迟了，代价是持续的紧张。你可能在努力维持一个已经裂开的表面，或者危机正在内部缓慢发生。","core":"结构的崩塌与清理","axis":"维持与崩塌","advice":"主动拆掉一小块，比等着整体塌下来更可控。","kup":["崩塌","真相揭露","突变","清理"],"krev":["延后的崩塌","内部瓦解","勉强维持"]},{"id":"major-17","name":"星星","en":"The Star","arcana":"major","suit":"major","element":"风","up":"风暴之后的安静。你正在恢复，而且恢复得比想象中好。此时的希望不是幻想，而是基于真实处境的一种温和的相信。","rev":"信心在漏水。你可能把期待放得太远，以至于看不见眼前的小进展；也可能刚刚失望过，暂时不敢再相信。","core":"疗愈与希望","axis":"希望与幻灭","advice":"把注意力放回身体和日常：能睡好、能吃饭，就是进步。","kup":["希望","疗愈","真诚","远方"],"krev":["失望","信心不足","与现实脱节"]},{"id":"major-18","name":"月亮","en":"The Moon","arcana":"major","suit":"major","element":"水","up":"信息是模糊的，而你的想象正在填补空白。此刻最危险的不是对方的隐瞒，而是你把自己旧有的恐惧投射到了现在。","rev":"雾正在散。你开始分得清哪些是事实、哪些是想象；被压抑的东西浮上来了，虽然不好受，但它让你自由。","core":"迷雾与投射","axis":"真相与想象","advice":"把猜测换成一次直接的提问，别在心里替对方回答。","kup":["迷雾","不安","投射","潜意识"],"krev":["看清","恐惧退散","真相浮现"]},{"id":"major-19","name":"太阳","en":"The Sun","arcana":"major","suit":"major","element":"火","up":"事情可以被摊在阳光下了。误会容易澄清，关系容易回暖，付出也更容易被看见。这是一张少有阴影的牌。","rev":"光还在，只是被挡住了一部分。可能是好消息延迟，也可能是过于乐观让人忽略了现实的细节。","core":"明朗与生命力","axis":"光与影","advice":"趁现在把话说清楚，这是最容易被善意接收的时刻。","kup":["明朗","成功","坦率","生命力"],"krev":["过度乐观","延迟的光","自我中心"]},{"id":"major-20","name":"审判","en":"Judgement","arcana":"major","suit":"major","element":"火","up":"一个更清醒的阶段到了。过去的事被重新审视，你会突然明白当初为什么那样选择。这也是一个可以重新开始的机会。","rev":"你在反复审判自己，却没有做出任何改变。也可能是一次召唤被搁置：你知道该回应，但还在等一个不会到来的许可。","core":"觉醒与清算","axis":"自责与觉醒","advice":"停止复盘对错，改为回答一个问题：接下来我要做什么。","kup":["觉醒","召唤","清算","复活"],"krev":["自我批判","逃避召唤","悬而未决"]},{"id":"major-21","name":"世界","en":"The World","arcana":"major","suit":"major","element":"土","up":"一个循环走到了完整的节点。你经历的事已经可以被整合成一段有意义的经历，接下来是把它放下、再出发。","rev":"差最后一步。某个环节没有闭合，让你无法真正结束，也无法真正开始。找出那个未完成的小事，把它做完。","core":"完成与整合","axis":"闭合与悬置","advice":"列一件「一直没做完的小事」，本周完成它。","kup":["完成","整合","圆满","新的循环"],"krev":["未完成","收尾困难","差一步"]},{"id":"wands-01","name":"权杖首牌","en":"Ace of Wands","arcana":"minor","suit":"wands","element":"火","up":"一簇火苗被点燃了。你想做点什么，这种冲动本身有价值——它暂时不需要完整计划，需要的是一个开始的动作。","rev":"火花出现了却点不着。你的热情是真的，但缺少可以落地的载体，或者一开始就被现实条件压住了。","core":"被点燃的原始冲动","axis":"冲动与承载","advice":"在 48 小时内做出一个最小的动作，让冲动变成事实。","kup":["灵感","行动契机","原始冲动","新的热情"],"krev":["动力受阻","只有火花","方向未定"]},{"id":"wands-02","name":"权杖二","en":"Two of Wands","arcana":"minor","suit":"wands","element":"火","up":"你已经站在门口，手里握着两种可能。此时需要的不是更多信息，而是选定一个方向并把资源集中过去。","rev":"你看得很远，却没有迈出城。可能是害怕选错，也可能是手边的安全感太舒服，让你甘愿留在原地。","core":"视野与迈步之间的距离","axis":"规划与执行","advice":"把两个选项各写一行代价，选那个你能承担的。","kup":["规划","远见","站在门口","权衡"],"krev":["缺乏行动","格局受限","犹豫不退"]},{"id":"wands-03","name":"权杖三","en":"Three of Wands","arcana":"minor","suit":"wands","element":"火","up":"你已经出手，现在等的是回应与回报。你的眼界正在变大，远方有机会在靠近，但要给它一点在路上的时间。","rev":"期待中的回音迟迟不来。可能是时机未到，也可能是当初对局势的判断过高。","core":"投入之后的等待期","axis":"耐心与预期","advice":"降低预期密度：把「必须成功」改成「先看反馈」。","kup":["扩张","等待回报","外部机会","展望"],"krev":["延误","视野落空","准备不足"]},{"id":"wands-04","name":"权杖四","en":"Four of Wands","arcana":"minor","suit":"wands","element":"火","up":"一个让人松一口气的稳定点到了：阶段性的成果、被接纳的位置、可以称之为「家」的关系。值得庆祝。","rev":"稳定感是借来的。表面看起来安定，底下还有未解决的结构问题，或者你并不真的觉得自己属于这里。","core":"阶段性的安顿","axis":"安定与根浅","advice":"把它当作中途站而不是终点，验收成果再决定下一步。","kup":["稳定","阶段性成果","归属","庆祝"],"krev":["不安定","表面和谐","尚未落定"]},{"id":"wands-05","name":"权杖五","en":"Five of Wands","arcana":"minor","suit":"wands","element":"火","up":"多方力量在同时用力，谁也没有真正占上风。这种混乱本身不一定坏——它逼你把立场说清楚。","rev":"冲突被压下去了，代价是持续的紧张。也可能你正在参与一场本不值得的争夺。","core":"多人博弈中的位置","axis":"竞争与消耗","advice":"先确认这场竞争的目标是什么，再决定要不要参与。","kup":["竞争","混乱","摩擦","各自为战"],"krev":["回避冲突","内耗","无意义的争夺"]},{"id":"wands-06","name":"权杖六","en":"Six of Wands","arcana":"minor","suit":"wands","element":"火","up":"你的努力被看见了。这是一个可以顺势争取更多支持的时刻，别因为谦虚把位置让出去。","rev":"掌声没有到来，或者来的是不牢靠的虚荣。别把自我价值全部押在别人的评价上。","core":"被承认的渴望","axis":"认可与自我价值","advice":"主动汇报你的成果，让付出被记录。","kup":["认可","胜利","被看见","信心"],"krev":["名不副实","认可延迟","自负"]},{"id":"wands-07","name":"权杖七","en":"Seven of Wands","arcana":"minor","suit":"wands","element":"火","up":"你在守一个位置，而这个位置是有价值的。需要的是清晰的边界和稳固的支点，不是妥协。","rev":"防守已经过度，你在对所有事情设防。也可能是你其实想退出，却还在硬撑。","core":"守住立场的代价","axis":"坚持与消耗","advice":"只守最重要的那一个点，其余的可以放手。","kup":["防守","坚持立场","压力","边界"],"krev":["疲于应对","放弃阵地","过度防御"]},{"id":"wands-08","name":"权杖八","en":"Eight of Wands","arcana":"minor","suit":"wands","element":"火","up":"事情开始加速。消息会集中到来，进展会比预期快，此时需要的是快速反应而不是完美准备。","rev":"速度带来了混乱。可能是消息延迟或者互相矛盾，也可能是你被节奏拖着走，失去了主导权。","core":"节奏的突然加快","axis":"速度与掌控","advice":"先把信息核实一遍，再回复。","kup":["加速","消息","进展","快速流动"],"krev":["延迟","信息混乱","节奏失控"]},{"id":"wands-09","name":"权杖九","en":"Nine of Wands","arcana":"minor","suit":"wands","element":"火","up":"你受了伤，但还站着。这张牌承认疲惫，也承认你比想象中更有韧性——只差一段距离。","rev":"防备变成了习惯，旧伤在影响你对新情况的判断。继续硬撑可能比暂时退一步代价更大。","core":"带伤前行的韧性","axis":"坚持与耗尽","advice":"先休整 48 小时，再决定是否继续。","kup":["韧性","戒备","疲惫中的坚持","最后一道防线"],"krev":["心力耗尽","旧伤影响","过度警惕"]},{"id":"wands-10","name":"权杖十","en":"Ten of Wands","arcana":"minor","suit":"wands","element":"火","up":"你扛的比你能扛的多。目的地确实近了，但没有人要求你必须一个人搬完。","rev":"负担已经到了必须处理的程度。要么放下一些，要么它会替你放下。","core":"超载的责任","axis":"承担与卸下","advice":"列出你扛的三件事，把其中一件交出去。","kup":["负担","责任过多","接近终点","独力承担"],"krev":["卸下","拒绝承担","压垮"]},{"id":"wands-11","name":"权杖侍从","en":"Page of Wands","arcana":"minor","suit":"wands","element":"火","up":"一种新鲜的、尚未被规训的好奇心。你可能刚接触某件事，或者收到一个让人兴奋的消息。","rev":"热度来得快去得也快。兴趣很多，但没有一件被真正推进过第一阶段。","core":"未经打磨的热情","axis":"好奇与坚持","advice":"给这个新兴趣一个月的试用期，再决定要不要深入。","kup":["好奇","尝试","热情的信使","新领域的探索"],"krev":["三分钟热度","方向散乱","不成熟"]},{"id":"wands-12","name":"权杖骑士","en":"Knight of Wands","arcana":"minor","suit":"wands","element":"火","up":"一股向前的动能，敢做敢冲，也带着感染力。适合需要打破僵局的时刻。","rev":"冲劲用错了地方。承诺说得很快，兑现跟不上；或者你在用行动逃避思考。","core":"带火的行动力","axis":"果决与鲁莽","advice":"行动之前只问一句：最坏的结果我能承担吗。","kup":["冲动","冒险","快速推进","魅力"],"krev":["轻率","半途而废","情绪化行动"]},{"id":"wands-13","name":"权杖王后","en":"Queen of Wands","arcana":"minor","suit":"wands","element":"火","up":"一种稳定而有温度的主导力。你知道自己要什么，也不需要通过压过别人来确认这件事。","rev":"自信需要外部确认来维持。可能是嫉妒、比较，也可能是用强势掩盖不确定。","core":"自我确认的吸引力","axis":"自信与不安","advice":"做一件只为自己开心的事，不为展示。","kup":["自信","吸引力","独立","温暖的主导"],"krev":["不安","嫉妒","以强势掩饰脆弱"]},{"id":"wands-14","name":"权杖国王","en":"King of Wands","arcana":"minor","suit":"wands","element":"火","up":"有远见也有魄力的角色。适合做决策、定方向，把一群人带向一个更大的目标。","rev":"愿景变成了个人意志的扩张。听不进别人的判断，或者只想快，不愿等。","core":"有远见的掌控力","axis":"领导与专断","advice":"把决定权分一部分出去，你会看到盲点。","kup":["愿景","领导力","魄力","长期布局"],"krev":["专断","好大喜功","缺乏耐心"]},{"id":"cups-01","name":"圣杯首牌","en":"Ace of Cups","arcana":"minor","suit":"cups","element":"水","up":"心被打开了。可能是一段新的情感、一次真正的理解，或你终于允许自己感受某件事。","rev":"情感被堵住了。你可能在保护自己，也可能刚从一段消耗里出来，暂时没有余力再给出。","core":"情感的初次流动","axis":"敞开与封闭","advice":"把真实的感受说给一个安全的人听。","kup":["新的情感","敞开","共情","心的流动"],"krev":["情感压抑","空杯","不敢投入"]},{"id":"cups-02","name":"圣杯二","en":"Two of Cups","arcana":"minor","suit":"cups","element":"水","up":"这是一种双向的流动。两个人愿意互相靠近、互相看见，关系的对等性是它最珍贵的地方。","rev":"流动不对等。一方给得多、一方收得多；或者彼此都在意，却因为误解卡住了。","core":"两个人的对等连接","axis":"互惠与失衡","advice":"直接问对方一次，别靠猜测平衡关系。","kup":["互相吸引","对等","和解","共鸣"],"krev":["关系失衡","误解","一方投入更多"]},{"id":"cups-03","name":"圣杯三","en":"Three of Cups","arcana":"minor","suit":"cups","element":"水","up":"身边的人在支持你。这一段能量来自共享：朋友、团体、被理解的快乐。","rev":"热闹之下没有真正的连接。也可能是关系里出现了第三个人，或者社交已经变成负担。","core":"群体中的共享与支持","axis":"共享与疏离","advice":"找那个能听你说真话的人，而不是最热闹的那群人。","kup":["陪伴","共享","友谊","庆祝"],"krev":["社交疲惫","表面热闹","第三方介入"]},{"id":"cups-04","name":"圣杯四","en":"Four of Cups","arcana":"minor","suit":"cups","element":"水","up":"你对眼前的东西提不起兴趣，哪怕它是好的。这种倦怠可能来自过度饱和，也可能来自不愿承认的失望。","rev":"你开始重新看向外面。那只递过来的手还在，只是你终于愿意接了。","core":"情感上的饱和与麻木","axis":"倦怠与重燃","advice":"先承认「我不满足」，再问自己缺的到底是什么。","kup":["倦怠","不满足","错过机会","向内"],"krev":["重新接受","走出麻木","抓住机会"]},{"id":"cups-05","name":"圣杯五","en":"Five of Cups","arcana":"minor","suit":"cups","element":"水","up":"你正在为失去的东西难过，这是必要的过程。但牌面提醒你：还有两杯没有倒，它们在你身后。","rev":"哀悼期在收尾。你开始能转身看见还在的东西，虽然遗憾不会完全消失。","core":"失去之后的注视方向","axis":"遗憾与复原","advice":"允许自己难过，同时列出三件还在的东西。","kup":["失落","遗憾","哀悼","视线向下"],"krev":["接受","回头","渐渐复原"]},{"id":"cups-06","name":"圣杯六","en":"Six of Cups","arcana":"minor","suit":"cups","element":"水","up":"过去的东西在向你招手：旧人、旧场景、一种单纯的善意。它带来安慰，也可能是一种提醒。","rev":"回忆变成了避难所。你把过去理想化，用来看不清现在的真实处境。","core":"过去与现在的拉扯","axis":"怀念与前行","advice":"承认过去的好，同时问：这段关系现在真的存在吗。","kup":["回忆","温柔","旧人","单纯"],"krev":["困在过去","理想化","无法向前"]},{"id":"cups-07","name":"圣杯七","en":"Seven of Cups","arcana":"minor","suit":"cups","element":"水","up":"选项很多，但大多只是想象中的可能性。此刻最难的不是选择，而是分辨哪些是真的。","rev":"雾散了，你终于能挑出那一个真实的选项。也可能是幻想被现实打破。","core":"想象与真实的混淆","axis":"幻想与澄清","advice":"给每个选项写一个可验证的事实，删掉只有想象的。","kup":["幻想","选择过多","模糊","诱惑"],"krev":["看清","聚焦","从幻觉中醒来"]},{"id":"cups-08","name":"圣杯八","en":"Eight of Cups","arcana":"minor","suit":"cups","element":"水","up":"你要离开一个「不算差但不够」的地方。这个决定不需要外界的认可，因为只有你知道缺了什么。","rev":"你走不了，或者走了又回来。也可能你其实在逃，而不是在寻找。","core":"离开与寻找意义","axis":"离开与留守","advice":"想清楚你要去找什么，而不是只想离开什么。","kup":["主动离开","不满足","寻找更深的意义","转身"],"krev":["难以割舍","回头","逃避式离开"]},{"id":"cups-09","name":"圣杯九","en":"Nine of Cups","arcana":"minor","suit":"cups","element":"水","up":"一种「终于可以了」的满足感。愿望很可能实现，也提醒你享受已经拥有的。","rev":"得到了却不满足。可能是愿望本身来自别人的期待，也可能快乐被过度延迟。","core":"愿望与满足感","axis":"满足与空虚","advice":"问自己：这是我想要的，还是我以为我该想要的。","kup":["满足","愿望达成","享受","自得"],"krev":["空虚的满足","延迟的愿望","自我沉醉"]},{"id":"cups-10","name":"圣杯十","en":"Ten of Cups","arcana":"minor","suit":"cups","element":"水","up":"一种稳定的、被接纳的幸福。它不轰烈，但是真的——关系在这里可以长期停靠。","rev":"和谐是摆出来的。底下的不满没有说出口，或者你对「幸福」的想象和现实差了很远。","core":"归属与长期和谐","axis":"真实与表象","advice":"把那个没说出口的失望讲出来，比维持表面更重要。","kup":["和谐","归属","长久的幸福","家庭感"],"krev":["表面和睦","期待落差","关系失和"]},{"id":"cups-11","name":"圣杯侍从","en":"Page of Cups","arcana":"minor","suit":"cups","element":"水","up":"一种温柔而笨拙的心动或灵感。它可能表现为一条试探的消息，一个不好意思说出口的念头。","rev":"情绪表达还不成熟：用撒娇、赌气或幻想来代替直说。也可能沉溺在情绪里不处理现实。","core":"初生的情感表达","axis":"敏感与幼稚","advice":"把试探改成一句明确的表达。","kup":["心动","敏感","想象","试探性的表达"],"krev":["情绪化","不成熟的表达","逃避现实"]},{"id":"cups-12","name":"圣杯骑士","en":"Knight of Cups","arcana":"minor","suit":"cups","element":"水","up":"一段带着诚意的靠近。有人愿意为你付出情感，或者你正准备为某件事投入真心。","rev":"浪漫多于实际。承诺好听但难以兑现，或者对方爱的是想象中的你。","core":"情感驱动的行动","axis":"诚意与虚幻","advice":"看他做了什么，而不是说了什么。","kup":["追求","浪漫","诚意","情感的行动"],"krev":["理想化","承诺空洞","情绪不稳"]},{"id":"cups-13","name":"圣杯王后","en":"Queen of Cups","arcana":"minor","suit":"cups","element":"水","up":"一种深度的理解力。你能感受到别人没有说出口的部分，这份共情是关系里非常稀缺的资源。","rev":"你接收了太多不属于你的情绪。共情变成了承担，界限被泡软了。","core":"共情的能力与代价","axis":"理解与吞没","advice":"每天留一段完全不接收他人情绪的时间。","kup":["共情","温柔","情绪智慧","包容"],"krev":["情绪淹没","过度付出","界限模糊"]},{"id":"cups-14","name":"圣杯国王","en":"King of Cups","arcana":"minor","suit":"cups","element":"水","up":"一种成熟的情感力量：有深情，但不会被情绪带走。能在冲突里保持温度与清醒。","rev":"情绪被压在水面下。看起来稳定，其实暗流很多；也可能有人用「为你好」来掌控局面。","core":"情绪与理性的平衡","axis":"稳定与压抑","advice":"找一个出口说出那些被压住的感受。","kup":["情绪成熟","稳定的深情","包容力","内在平静"],"krev":["情绪压抑","操控式关怀","暗涌"]},{"id":"swords-01","name":"宝剑首牌","en":"Ace of Swords","arcana":"minor","suit":"swords","element":"风","up":"一道清醒的光。你能看穿事情的本质，也能说出那句必须说清楚的话。此刻理性是有用的工具。","rev":"思考被情绪或立场污染。可能是话说得太锋利，也可能是信息不足就下了结论。","core":"真相与清晰的判断","axis":"清醒与锋利","advice":"把结论推迟一天，再确认你的判断是否成立。","kup":["清晰","真相","突破性判断","理性"],"krev":["言语伤害","思路混乱","误判"]},{"id":"swords-02","name":"宝剑二","en":"Two of Swords","arcana":"minor","suit":"swords","element":"风","up":"你闭上眼睛，因为看清就意味着必须选。这个僵局保护了你，也让你停在原地。","rev":"眼罩被拿掉了。你不得不面对那个一直在回避的信息，虽然不舒服，但僵局开始松动。","core":"刻意维持的僵局","axis":"回避与面对","advice":"把两个选项的真实代价写下来，逃避也会被计价。","kup":["回避","僵局","暂时封闭","难以抉择"],"krev":["看清","打破僵局","被迫面对"]},{"id":"swords-03","name":"宝剑三","en":"Three of Swords","arcana":"minor","suit":"swords","element":"风","up":"一句真话或一次背叛造成了明确的伤口。它痛得清楚，但至少不再是模糊的不安。","rev":"伤口在处理中。你开始能谈论它而不崩溃，但完全愈合还需要时间。","core":"被真相刺穿的痛","axis":"伤痛与复原","advice":"允许自己痛，但不要用痛来证明爱。","kup":["心碎","被刺伤的话","痛苦的真相","分离"],"krev":["复原","原谅","伤口愈合中"]},{"id":"swords-04","name":"宝剑四","en":"Four of Swords","arcana":"minor","suit":"swords","element":"风","up":"你需要休息，而且这是正当的。暂停不是退出，是把刀刃收起来保养。","rev":"身体或情绪已经强制你停下。也可能是休息够了，该重新面对了。","core":"必要的停顿","axis":"休息与停滞","advice":"真的休息：关掉消息，睡一觉。","kup":["休息","暂停","恢复","退隐"],"krev":["被迫停下","休息不足","重新启动"]},{"id":"swords-05","name":"宝剑五","en":"Five of Swords","arcana":"minor","suit":"swords","element":"风","up":"一场赢了也不划算的争执。你可能是赢家，也可能是被伤的那个，但两边都在失去。","rev":"争斗在收尾。有人选择退出，伤口开始结痂，但关系的质地已经改变。","core":"胜利的代价","axis":"争胜与损失","advice":"问自己：赢了这一局，我真正想要的东西会更容易得到吗。","kup":["争斗","赢了却失去","言语交锋","代价"],"krev":["和解","退出争斗","余波"]},{"id":"swords-06","name":"宝剑六","en":"Six of Swords","arcana":"minor","suit":"swords","element":"风","up":"你正在离开一段动荡，去往更平静的地方。过程不轻松，但方向是对的。","rev":"你换了地方，却没有换掉问题。旧的情绪模式被一起带上了船。","core":"从动荡到平静的过渡","axis":"离开与携带","advice":"别急着解决全部，先让自己到岸。","kup":["过渡","离开风暴","缓慢复原","带着伤前行"],"krev":["难以离开","旧问题跟随","过渡受阻"]},{"id":"swords-07","name":"宝剑七","en":"Seven of Swords","arcana":"minor","suit":"swords","element":"风","up":"有人在保留信息，或者在绕开正面沟通。也可能这是你：为了避免冲突而选择了迂回。","rev":"隐瞒正在失效。被藏起来的部分开始露出来，坦白反而成了损失最小的选择。","core":"信息的不对等","axis":"策略与诚实","advice":"问一个具体到无法含糊回答的问题。","kup":["隐瞒","策略","独自行动","不完全坦白"],"krev":["真相曝光","坦白","自欺被识破"]},{"id":"swords-08","name":"宝剑八","en":"Eight of Swords","arcana":"minor","suit":"swords","element":"风","up":"你觉得自己没有选择，但绑住你的布条是松的。真正的限制多半来自「我不能」这个判断。","rev":"你开始看到出口。限制还在，但你不再相信它是绝对的。","core":"自我设限的牢笼","axis":"受限与解放","advice":"列出三个「我不能」，逐个问：真的吗。","kup":["受限感","自我设限","看不清出路","被绑住"],"krev":["松绑","看清选择","重获自由"]},{"id":"swords-09","name":"宝剑九","en":"Nine of Swords","arcana":"minor","suit":"swords","element":"风","up":"焦虑在深夜被放大。你担心的很多事还没有发生，甚至不会发生——但此刻的恐惧是真实的。","rev":"最糟的部分过去了。当你把恐惧说出来，它就不再占据全部空间。","core":"被放大的恐惧","axis":"焦虑与现实","advice":"把担心写下来，标注哪些是已发生的事实。","kup":["焦虑","失眠","过度思虑","夜里放大"],"krev":["恐惧退去","说出口","逐渐平息"]},{"id":"swords-10","name":"宝剑十","en":"Ten of Swords","arcana":"minor","suit":"swords","element":"风","up":"一件事彻底结束了，没有回旋余地。但也正因为到底了，不会再更糟。","rev":"你正在从最低点往上走。伤口还在，但已经不再流血。","core":"无可挽回的终结","axis":"结束与重生","advice":"承认结束，别再为它寻找翻盘的可能。","kup":["终局","彻底结束","触底","背叛"],"krev":["复原","最坏已过","重新站起"]},{"id":"swords-11","name":"宝剑侍从","en":"Page of Swords","arcana":"minor","suit":"swords","element":"风","up":"一种警觉的好奇心。你在收集信息、观察细节，也可能有人在打听你的情况。","rev":"警觉变成了多疑。信息被传歪，或者你被片面的消息带着走。","core":"信息与警觉","axis":"敏锐与猜疑","advice":"核实来源，再相信。","kup":["观察","好奇","打探消息","敏锐"],"krev":["多疑","口舌","信息失真"]},{"id":"swords-12","name":"宝剑骑士","en":"Knight of Swords","arcana":"minor","suit":"swords","element":"风","up":"带着锋利判断的直接行动。适合处理需要快刀斩乱麻的局面。","rev":"太快、太锋利。话一出口就收不回，行动也可能伤了不该伤的人。","core":"锋利的行动力","axis":"果断与伤害","advice":"把想说的话留一夜，明天再发。","kup":["果断","直冲","言辞凌厉","速度"],"krev":["鲁莽","伤人","欠缺考虑"]},{"id":"swords-13","name":"宝剑王后","en":"Queen of Swords","arcana":"minor","suit":"swords","element":"风","up":"一种不带幻想的清醒。你能在情感浓稠时保持判断，也敢于说出不受欢迎的实话。","rev":"理性变成了铠甲。可能是用冷漠保护自己，也可能是言语已经伤到人。","core":"理性的边界","axis":"清醒与冷漠","advice":"在说实话前，先确认你是想解决问题还是想赢。","kup":["清醒","独立","直言","界限分明"],"krev":["冷漠","尖刻","过度理性"]},{"id":"swords-14","name":"宝剑国王","en":"King of Swords","arcana":"minor","suit":"swords","element":"风","up":"一个以原则和逻辑做决定的位置。它公正、有说服力，但需要留意情感的缺位。","rev":"理性被用来压制。道理全对，人情全无；或者有人在用权威让你闭嘴。","core":"原则与判断的权威","axis":"公正与冷酷","advice":"在讲道理之前，先承认对方的感受。","kup":["判断力","原则","权威的理性","公正"],"krev":["专断","冷酷","以理压人"]},{"id":"pentacles-01","name":"星币首牌","en":"Ace of Pentacles","arcana":"minor","suit":"pentacles","element":"土","up":"一个可以真正落地的机会：钱、工作、实际的资源。它值得认真对待，而不是当作备用选项。","rev":"机会在眼前却没有接住。可能是准备不足，也可能是你还在等一个更完美的版本。","core":"可落地的实质机会","axis":"机会与把握","advice":"把机会换算成具体的数字和时间表。","kup":["实质机会","资源","落地","新的开始"],"krev":["机会流失","缺乏规划","资源不足"]},{"id":"pentacles-02","name":"星币二","en":"Two of Pentacles","arcana":"minor","suit":"pentacles","element":"土","up":"你在同时兼顾几件事，而且平衡得还不错。关键是保持灵活，别把任何一头拉得太紧。","rev":"两头快接不住了。继续加码只会一起掉，需要明确放弃一项。","core":"多线之间的平衡","axis":"灵活与失序","advice":"这周只保两件事，其余延后。","kup":["平衡","多线并行","灵活调整","取舍"],"krev":["失衡","顾此失彼","过载"]},{"id":"pentacles-03","name":"星币三","en":"Three of Pentacles","arcana":"minor","suit":"pentacles","element":"土","up":"你的专业正在被需要。这是一个可以靠合作把事做成的位置，前提是把分工谈清楚。","rev":"协作出了问题。有人不出力，或者你的贡献没有被看见、被计入。","core":"专业与协作","axis":"共建与错位","advice":"把分工和责任写成文字，别只靠默契。","kup":["协作","专业","被认可的技艺","共同建造"],"krev":["配合失调","各做各的","专业不被重视"]},{"id":"pentacles-04","name":"星币四","en":"Four of Pentacles","arcana":"minor","suit":"pentacles","element":"土","up":"你在守住已经拥有的东西。这在不确定的时期是合理的，但守得太紧会挡住新的流动。","rev":"紧抓不放已经带来代价。可能是关系里的控制，也可能是对金钱和确定性的过度焦虑。","core":"安全感的守与放","axis":"守住与流动","advice":"找出你真正怕失去的那样东西，直接面对它。","kup":["守成","安全感","控制资源","不愿松手"],"krev":["放开","过度紧缩","因恐惧而囤积"]},{"id":"pentacles-05","name":"星币五","en":"Five of Pentacles","arcana":"minor","suit":"pentacles","element":"土","up":"一段真实的匮乏期，可能是钱、机会，或归属感。牌面提醒你：门就在旁边，求助并不丢人。","rev":"最难的部分正在过去。你开始愿意接受帮助，也慢慢找回资源。","core":"匮乏与被排除的体验","axis":"孤立与求助","advice":"向一个人开口求助，具体到你需要什么。","kup":["匮乏","被排除在外","艰难时期","求助"],"krev":["度过难关","接受帮助","缓慢恢复"]},{"id":"pentacles-06","name":"星币六","en":"Six of Pentacles","arcana":"minor","suit":"pentacles","element":"土","up":"资源在流动：有人愿意给你，或者你有能力给出。健康的版本是双向的、有尊重的。","rev":"流动不对等。给予附带了条件，或者你一直在接受而无法回报，关系因此微妙。","core":"资源与权力的流动","axis":"平等与依附","advice":"把这段交换讲清楚：你给什么，你要什么。","kup":["给予与接受","资源流动","公平交换","支持"],"krev":["不对等","带有条件的给予","施与受失衡"]},{"id":"pentacles-07","name":"星币七","en":"Seven of Pentacles","arcana":"minor","suit":"pentacles","element":"土","up":"你已经投入很久了，现在到了评估的阶段。收成还没到，但可以看清哪些投入是有效的。","rev":"投入与回报不成比例。要么再加时间，要么承认这块地不适合。","core":"投入与回报的评估","axis":"耐心与止损","advice":"给自己一个明确的期限，到期就做决定。","kup":["等待收成","长期投入","评估","耐心"],"krev":["回报不足","方向需调整","焦躁"]},{"id":"pentacles-08","name":"星币八","en":"Eight of Pentacles","arcana":"minor","suit":"pentacles","element":"土","up":"把注意力放在手艺上。这段时间的重复不是浪费，它在把能力变成别人拿不走的东西。","rev":"你在机械地做，不再精进。也可能被琐事淹没，失去了做这件事的意义感。","core":"专注与技艺的积累","axis":"精进与敷衍","advice":"选一件小事做到明显比昨天好。","kup":["专注","打磨","重复练习","专业积累"],"krev":["敷衍","停滞","为了完成而完成"]},{"id":"pentacles-09","name":"星币九","en":"Nine of Pentacles","arcana":"minor","suit":"pentacles","element":"土","up":"你靠自己挣得了可以享受的位置。这份独立是真实的，值得承认。","rev":"独立感不稳。可能是依赖别人的资源，也可能是用忙碌和成就掩盖孤独。","core":"自给自足的从容","axis":"独立与孤立","advice":"享受一次你自己付得起的好东西。","kup":["独立","自给自足","成果","从容"],"krev":["依赖","成果不稳","孤独的代价"]},{"id":"pentacles-10","name":"星币十","en":"Ten of Pentacles","arcana":"minor","suit":"pentacles","element":"土","up":"一个可以长期依靠的结构：家庭、共同的资产、稳定的生活基础。这是慢慢累积出来的结果。","rev":"结构有裂缝。可能是家人的期待压过来，也可能是你们在长期规划上从未真正对齐。","core":"长期的结构与归属","axis":"稳定与束缚","advice":"把「长期」具体化：三年后你们在哪里、靠什么生活。","kup":["长期稳定","家族","积累","可持续"],"krev":["结构不稳","短期利益","家庭压力"]},{"id":"pentacles-11","name":"星币侍从","en":"Page of Pentacles","arcana":"minor","suit":"pentacles","element":"土","up":"一个务实的、从零开始的阶段。愿意学、愿意做小事，是最有价值的状态。","rev":"想得多做得少，或者只想要结果不愿经历过程。","core":"务实的学习期","axis":"起步与拖延","advice":"今天完成一件具体到可以打勾的小事。","kup":["学习","务实的开始","学生心态","小额投入"],"krev":["拖延","眼高手低","缺乏执行"]},{"id":"pentacles-12","name":"星币骑士","en":"Knight of Pentacles","arcana":"minor","suit":"pentacles","element":"土","up":"一种不快但可靠的推进方式。它不做承诺之外的事，但承诺的事会发生。","rev":"稳定变成了停滞。也可能是对方太慢、太保守，让你看不到进展。","core":"可靠与速度的取舍","axis":"稳健与停滞","advice":"设一个可检查的里程碑，而不是等结果。","kup":["稳健","可靠","长期执行","慢但确定"],"krev":["僵化","过于保守","进展缓慢"]},{"id":"pentacles-13","name":"星币王后","en":"Queen of Pentacles","arcana":"minor","suit":"pentacles","element":"土","up":"一种把生活照顾好的能力：会安排、会经营、让身边的人感到踏实。","rev":"照顾别人到忘了自己。也可能是物质焦虑占满了注意力，无法享受已经拥有的。","core":"务实照料的力量","axis":"付出与自我照顾","advice":"把「照顾自己」写成这周的具体安排。","kup":["照顾","务实","丰足","把生活过好"],"krev":["过度操心","忽略自己","物质焦虑"]},{"id":"pentacles-14","name":"星币国王","en":"King of Pentacles","arcana":"minor","suit":"pentacles","element":"土","up":"一个已经把事做成的位置。资源、经验、耐心都在，适合做长期的决定。","rev":"固守已有的东西，不愿冒任何风险；也可能把关系换算成了成本与收益。","core":"成就与资源的经营","axis":"经营与固守","advice":"在稳妥的选项里加一点新的可能。","kup":["成就","资源掌控","稳定","长期经营"],"krev":["固执","物质至上","守成不前"]}];
+const byId = Object.fromEntries(CARDS.map(c => [c.id, c]));
+const IMG = {};
+const SUIT_SYM = { wands:'🜂', cups:'🜄', swords:'🜁', pentacles:'🜃', major:'✶' };
+const SPREADS = [
+  { id:'three', name:'经典三张', en:'PAST · PRESENT · FUTURE', count:3, scene:'看清一件事的来龙去脉：起因、现状与走向。',
+    pos:[['过去 / 起因','问题从哪里来'],['现在 / 核心','此刻真正的状态'],['未来 / 趋势','如果不做改变，它会去哪里']] },
+  { id:'five', name:'五张深度分析', en:'DEEP ANALYSIS', count:5, scene:'把一件事层层剥开：表面之下的隐藏因素与阻碍。',
+    pos:[['问题核心','这件事的本质'],['表面因素','你看到的部分'],['隐藏因素','你没看到的部分'],['潜在阻碍','卡住你的东西'],['趋势与建议','接下来会怎样']] },
+  { id:'celtic', name:'凯尔特十字', en:'CELTIC CROSS', count:10, scene:'十个位置层层展开，适合复杂、重要、悬而未决的问题。',
+    pos:[['现状','此刻的位置'],['阻碍','横亘的挑战'],['潜意识','深层的动因'],['过去','影响现在的一切'],['可能发展','即将浮现的可能'],['近期趋势','不久之后的走向'],['个人态度','你自己的姿态'],['外部环境','周遭的力场'],['希望与恐惧','你渴望与害怕的'],['最终趋势','整件事的落点']] },
+  { id:'love', name:'爱情关系', en:'RELATIONSHIP', count:5, scene:'从两个人的状态，看到关系的暗流与走向。',
+    pos:[['自己的状态','你在这段关系里'],['对方的状态','TA 在这段关系里'],['关系现状','两个人之间'],['潜在矛盾','未被说出的分歧'],['未来走向','这段关系去哪里']] },
+  { id:'choice', name:'二选一决策', en:'TWO PATHS', count:5, scene:'把两条路各自的风景与代价都摆出来。', hasOptions:true,
+    pos:[['当前处境','你站在岔路口'],['A 的走向','选择 A 会去哪里'],['A 的代价','选择 A 要付出什么'],['B 的走向','选择 B 会去哪里'],['B 的代价','选择 B 要付出什么']] },
+  { id:'single', name:'单张指引', en:'DAILY GUIDANCE', count:1, scene:'一个简单的问题，一张干脆的牌。' ,
+    pos:[['指引','宇宙今天的回应']] },
+];
+const SLOTS = {
+  three:[[24,50,24],[50,50,24],[76,50,24]],
+  five:[[50,17,19],[24,50,19],[76,50,19],[36,83,19],[64,83,19]],
+  celtic:[[42,50,16],[42,50,16,1],[42,78,16],[18,50,16],[42,22,16],[66,50,16],[88,72,13],[88,54,13],[88,36,13],[88,18,13]],
+  love:[[26,17,19],[74,17,19],[50,50,19],[26,83,19],[74,83,19]],
+  choice:[[50,16,19],[24,50,19],[24,84,19],[76,50,19],[76,84,19]],
+  single:[[50,50,42]],
+};
+const ASPECT = { three:'1 / 0.6', single:'1 / 0.8', five:'1 / 1.02', celtic:'1 / 1.2', love:'1 / 1.02', choice:'1 / 1.02' };
+
+/* ============ 状态 ============ */
+const HKEY = 'arcana-mobile-history';
+const state = {
+  screen:'home', question:'', tags:[], spread:null, optA:'', optB:'',
+  deck:[], draws:[], flipFlags:[], report:null, engine:'local', messages:[], fav:false,
+  history:loadHistory(), viewOnly:false, optOpen:null,
+};
+function loadHistory(){ try{ return JSON.parse(localStorage.getItem(HKEY)||'[]'); }catch(e){ return []; } }
+function saveHistory(){ try{ localStorage.setItem(HKEY, JSON.stringify(state.history.slice(0,50))); }catch(e){} }
+
+/* ============ 牌局 ============ */
+function shuffle(){ const d=CARDS.map(c=>c.id); for(let i=d.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [d[i],d[j]]=[d[j],d[i]]; } return d; }
+function startDraw(){
+  state.deck=shuffle(); state.draws=[]; state.flipFlags=[]; state.messages=[]; state.report=null; state.fav=false; state.viewOnly=false;
+  go('draw');
+}
+function drawCard(i){
+  if(state.draws.length>=state.spread.count) return;
+  const id=state.deck.splice(i,1)[0];
+  const orientation=Math.random()<0.4?'reversed':'upright';
+  state.draws.push({cardId:id,orientation});
+  state.flipFlags[state.draws.length-1]=false;
+  render();
+  const idx=state.draws.length-1;
+  const cards=document.querySelectorAll('.slot .card3d');
+  const el=cards[idx];
+  setTimeout(()=>{
+    if(el) el.classList.add('flip');
+    state.flipFlags[idx]=true;
+  },460);
+}
+
+/* ============ 本地推演引擎 ============ */
+function analyze(q){
+  const t=q;
+  const has=(...ws)=>ws.some(w=>t.includes(w));
+  let intent='open';
+  if(has('应该','要不要','选择','还是','哪个','选哪','值不值')) intent='decision';
+  else if(has('想法','态度','怎么想','在想什么','怎么看','对我')) intent='state';
+  else if(has('为什么','原因','问题在哪','哪里出了','根源')) intent='cause';
+  else if(has('会不会','未来','发展','结果','走向','以后','三个月','概率','能否','能不能')) intent='trend';
+  const domain=has('爱','感情','喜欢','关系','在一起','分手','复合','表白','恋爱','对象','TA','他','她')&&!(has('工作','公司','offer','项目'))
+    ?'love':has('工作','事业','offer','公司','老板','跳槽','离职','项目','合作','面试','升职','创业')?'career'
+    :has('钱','收入','投资','存款','赚','财务','债务')?'wealth':'general';
+  const subject=has('他','她','对方','男朋友','女朋友','前任','partner')?'对方':'我';
+  const DOMAIN={love:'感情关系',career:'事业与工作',wealth:'财务状况',general:'你所问的这件事'};
+  const INTENT={decision:'决策',state:'真实状态',cause:'成因',trend:'发展趋势',open:'整体局势'};
+  return { intent, domain, subject, label:DOMAIN[domain]+' · '+INTENT[intent] };
+}
+function makeReport(){
+  const sp=state.spread, draws=state.draws, a=analyze(state.question);
+  const d=draws.map(x=>({card:byId[x.cardId],rev:x.orientation==='reversed',pos:sp.pos[x.positionIndex?x.positionIndex:x.draws_i||0]}));
+  d.forEach((x,i)=>x.pos=sp.pos[i]);
+  const majors=d.filter(x=>x.card.arcana==='major');
+  const revs=d.filter(x=>x.rev);
+  const elems={}; d.forEach(x=>{elems[x.card.element]=(elems[x.card.element]||0)+1;});
+  const elemStr=Object.entries(elems).map(([k,v])=>k+'×'+v).join('，');
+  const key=(majors[0]||d[0]).card;
+  const hard=d.slice().sort((x,y)=>(y.rev?1:0)-(x.rev?1:0)+(x.card.suit==='swords'?0.5:0))[0];
+  const last=d[d.length-1];
+  const opts=sp.id==='choice'&&state.optA?`（A：${state.optA} ／ B：${state.optB||'维持现状'}）`:'';
+  const conclusion={
+    decision:`这次的牌面直指一个事实：${key.core}。${opts?'两条路' : '你现在面对的'}的差距不在「哪个更好」，而在「你更愿意承担哪一种代价」——牌把它摊开了。`,
+    state:`${key.name}是全场最响的一张牌：${key.core}。${a.subject==='对方'?'对方真实的想法比表面呈现的更接近这张牌的核心，而不是你脑中反复推演的版本。':'你此刻的真实状态，比你自己愿意承认的更接近这张牌。'}`,
+    cause:`成因不在你以为的那一环。${hard.card.name}${hard.rev?'（逆位）':''}指向的「${hard.card.core}」才是链条上的断点——它被反复绕开，于是问题反复出现。`,
+    trend:`牌面给出的方向是「${last.card.core}」，但它是有条件的未来：条件不变，才会走到这一步。你在牌面里仍然握有改变的入口。`,
+    open:`${key.name}：${key.core}。这就是你这件事此刻的全部重心，其余的牌都在围着它转。`}[a.intent];
+  const per=d.map((x,i)=>{
+    const mean=x.rev?x.card.rev:x.card.up;
+    const frame=x.rev
+      ? `逆位让这股能量往内收：在「${x.card.axis}」这根轴上它失衡了，所以没有顺畅地长成外部的样子。`
+      : `${x.card.core}正在顺畅流转，「${x.card.axis}」这根轴是通的。`;
+    const landing=x.rev
+      ? `它落在「${x.pos[0]}」——${x.pos[1]}，这里恰好是你使不上力、越推越紧的地方，先松开再谈推进。`
+      : `它落在「${x.pos[0]}」——${x.pos[1]}，这是你手里最实的一张，可以从这里借力。`;
+    return {title:`位置${i+1} · ${x.pos[0]}｜${x.card.name} ${x.rev?'逆位':'正位'}`,
+      text:`${mean} ${frame} ${landing}`};
+  });
+  const majorNote=majors.length>=3?`本次${d.length}张里出现了${majors.length}张大阿卡纳（${majors.map(x=>x.card.name).join('、')}）——这不是日常琐事的牌面，而是把你推到人生议题跟前的牌面，值得认真对待。`
+    :majors.length===0?`没有大阿卡纳出现：这件事更多在日常生活与具体事务的层面展开，主动权比你想的更在你手里。`
+    :`大阿卡纳只有${majors.map(x=>x.card.name).join('、')}——它标记的是整件事的主旋律，其余牌是它的注脚。`;
+  const repSuit=Object.values(elems).some(v=>v>=Math.ceil(d.length/2));
+  const links=`元素分布：${elemStr}。${majorNote} 逆位比例 ${revs.length}/${d.length}${revs.length>=Math.ceil(d.length/2)?'——过半的逆位说明这件事里「该流动的没流动」：拖延、回避或内耗是主因，先把堵住的地方疏通。':revs.length===0?'——全场正位，局势坦荡，此刻的判断可以更果断一些。':'——局部受阻，但整体仍在运转，属于「可以推动」的状态。'}${repSuit?' 元素高度集中，说明你把全部筹码押在了同一种应对方式上，建议引入另一种资源。':''}`;
+  const insight=`${hard.card.name}${hard.rev?'（逆位）':''}是牌面里最「沉」的一张。你可能忽略的是：${hard.card.core}。${a.subject==='对方'?'对方的沉默或反复，未必是不在乎，更可能是TA自己也卡在同一件事上。':'情绪正在替你做决定——把它先放一放，再看这件事，结论可能完全不同。'}`;
+  let trend;
+  if(a.intent==='decision'){
+    const cA=d[1]?`${state.optA||'A'} 一侧：${d[1].card.core}`:'';
+    const cB=d[3]?`${state.optB||'B'} 一侧：${d[3].card.core}`:'';
+    trend=`两条路都给了价签：${[cA,cB].filter(Boolean).join('；')}。没有免责的选择，只有你认账的选择。`;
+  }else{
+    trend=`照现在的走法，最可能的落点是「${last.card.core}」。${last.rev?'但注意它是逆位——这个未来本身就带着不确定，恰说明结局仍可改写。':'这是一个相对清晰的走向，你可以据此提前布局。'}`;
+  }
+  const actions=[d[0].card.advice,hard.card.advice,last.card.advice];
+  if(a.intent==='decision') actions.push('把两个选项各写成一句话：「我选它，是因为我愿意承担____」。写不出来的那个，就是还没准备好。');
+  if(revs.length>=Math.ceil(d.length/2)) actions.push('选一件已经拖了超过两周的小事，今天做完——逆位过半的牌面最需要的是「启动」，不是「想清楚」。');
+  actions.push('给这次占卜的问题设一个复查时间：两周后回到这里，看看牌面说的「${}」是否开始显形。'.replace('${}',last.card.core));
+  const summary={
+    decision:'牌没有替你选，它只是把两种代价都翻给你看了。',
+    state:`真正的答案藏在「${hard.card.core}」里，不在对方的措辞里。`,
+    cause:'断点被找到的那一刻，问题就开始松动了。',
+    trend:`趋势是「${last.card.core}」——除非你在它成为结果之前先动手。`,
+    open:`${key.name}：${key.core}。`}[a.intent];
+  return {conclusion,per,links,insight,trend,actions:[...new Set(actions)].slice(0,4),summary,
+    meta:{q:state.question,spreadId:sp.id,spName:sp.name,opts,date:new Date().toLocaleString('zh-CN',{hour12:false})}};
+}
+function chatReply(q){
+  const named=CARDS.find(c=>q.includes(c.name));
+  if(named){
+    const hit=state.draws.map((x,i)=>({...x,i})).find(x=>x.cardId===named.id);
+    if(hit){ const rev=hit.orientation==='reversed';
+      return `「${named.name}」出现在本次牌阵的第 ${hit.i+1} 张——位置含义是「${state.spread.pos[hit.i][0]}」。${rev?named.rev:named.up} 结合你最初的问题（${state.question}），它在这个位置${rev?'是在提醒你：这股能量被卡住了，先解决内耗':'是在告诉你：这股能量正是此刻可以借力的地方'}。`; }
+    return `「${named.name}」并不在本次抽到的牌里——它的缺席本身也是信息：这股能量目前不是你的课题所在。本次牌面的重心在${(state.report&&state.report.summary)||'以上解读'}。`;
+  }
+  if(q.includes('联系')||q.includes('主动')||q.includes('如果')){
+    const c0=byId[state.draws[0].cardId];
+    return `如果你主动迈出一步，最先被改变的不是结果，而是「${c0.core}」这个前提——它决定了后续牌面展开的方式。牌面提示的动作是：${c0.advice}`;
+  }
+  if(q.includes('阻碍')||q.includes('卡')||q.includes('难')){
+    const hard=state.draws.map((x,i)=>({x,i,rev:x.orientation==='reversed'})).sort((a,b)=>(b.rev?1:0)-(a.rev?1:0))[0];
+    const c=byId[hard.x.cardId];
+    return `最大的阻碍由第 ${hard.i+1} 张牌指出：「${c.name}」${hard.rev?'（逆位）':''}——${c.core}。具体来说：${c.advice}`;
+  }
+  return `回到牌面本身：${state.report?state.report.summary:''} 如果你想深入某一张牌，可以直接说出牌名（例如「${byId[state.draws[0].cardId].name}」代表什么）；也可以问我「最大的阻碍是什么」「如果我主动，会怎样」。`;
+}
+
+/* ============ 渲染 ============ */
+const app=document.getElementById('app');
+function go(s){ state.screen=s; window.scrollTo(0,0); render(); }
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+function faceHTML(cid,rev,cls){
+  const c=byId[cid];
+  return `<div class="card3d ${cls||''}"><div class="cinner">
+    <div class="cf back"></div>
+    <div class="cf face"><img src="${IMG[cid]||('cards/'+cid+'.webp')}" class="${rev?'rev':''}" alt="${c.name}"
+      onerror="this.closest('.cf').classList.add('noface')">
+      <div class="cffall"><span class="fs">${SUIT_SYM[c.suit]||'✶'}</span><span class="fn">${c.name}</span><span class="fe">${c.en}</span></div>
+    </div></div></div>`;
+}
+function slotHTML(i,revealed,flipCls,lit){
+  const sl=SLOTS[state.spread.id][i];
+  const [x,y,w,rot]=sl;
+  const d=state.draws[i];
+  const flipped=d && (flipCls==='flip' || state.flipFlags[i]);
+  const inner=d?faceHTML(d.cardId,d.orientation==='reversed',(flipped?'flip ':'')+(lit&&i===state.draws.length-1?'lit':'')):`<div class="card3d"><div class="cinner" style="position:relative"><div class="cf back" style="position:relative;height:100%"></div></div></div>`;
+  return `<div class="slot" style="left:${x}%;top:${y}%;width:${w}%;${rot?`transform:translate(-50%,-50%) rotate(90deg);`:''}">
+    <div style="aspect-ratio:1/1.72">${inner}</div></div>`;
+}
+function boardHTML(flipCls){
+  return `<div class="board" style="aspect-ratio:${ASPECT[state.spread.id]}">
+    ${state.spread.pos.map((_,i)=>slotHTML(i,true,flipCls)).join('')}</div>`;
+}
+function render(){
+  const s=state.screen;
+  if(s==='home') renderHome();
+  else if(s==='spread') renderSpread();
+  else if(s==='draw') renderDraw();
+  else if(s==='reveal') renderReveal();
+  else if(s==='reading') renderReading();
+  else if(s==='chat') renderChat();
+  else if(s==='history') renderHistory();
+}
+function renderHome(){
+  const TAGS=['感情','事业','决策','自我','指引'];
+  app.innerHTML=`
+  <div class="screen">
+    <div class="brand en">A R C A N A</div>
+    <div class="orn">✦</div>
+    <h1 class="title en">Ask the Cards</h1>
+    <p class="subtitle">让宇宙为你的问题提供另一种视角</p>
+    <div class="orn">✦</div>
+    <textarea id="q" rows="4" placeholder="写下你想问的问题——任何问题，不被分类限制">${esc(state.question)}</textarea>
+    <div class="chips" id="chips">${TAGS.map(t=>`<button class="chip ${state.tags.includes(t)?'on':''}" data-t="${t}">${t}</button>`).join('')}</div>
+    <button class="btn" id="start">开 始 占 卜</button>
+    <div class="linkbar">
+      <button id="tohist">历史记录</button>
+      <button id="tospread">直接选牌阵</button>
+    </div>
+    <p class="note" style="text-align:center;margin-top:26px">78 张韦特塔罗 · 6 种牌阵 · 单文件手机版</p>
+  </div>`;
+  document.getElementById('chips').onclick=e=>{const t=e.target.dataset.t;if(!t)return;
+    state.tags.includes(t)?state.tags=state.tags.filter(x=>x!==t):state.tags.push(t);renderHome();};
+  document.getElementById('start').onclick=()=>{
+    const q=document.getElementById('q').value.trim();
+    if(!q){document.getElementById('q').focus();return;}
+    state.question=q; go('spread');
+  };
+  document.getElementById('tospread').onclick=()=>go('spread');
+  document.getElementById('tohist').onclick=()=>go('history');
+}
+function miniDiagram(id){
+  const dots={three:[[20,50],[50,50],[80,50]],five:[[50,20],[25,55],[75,55],[38,85],[62,85]],
+    celtic:[[42,50],[42,50],[42,82],[15,50],[42,18],[68,50],[88,80],[88,58],[88,36],[88,14]],
+    love:[[28,22],[72,22],[50,50],[28,78],[72,78]],choice:[[50,18],[26,52],[26,86],[74,52],[74,86]],single:[[50,50]]}[id];
+  return `<svg width="52" height="52" viewBox="0 0 100 100">${dots.map(([x,y])=>
+    `<rect x="${x-8}" y="${y-11}" width="16" height="22" rx="2.5" fill="rgba(207,178,124,.07)" stroke="rgba(207,178,124,.85)" stroke-width="3.4"/>`).join('')}</svg>`;
+}
+function renderSpread(){
+  app.innerHTML=`
+  <div class="screen">
+    <div class="topbar"><button class="backlink" id="bk">← 返回</button><span class="tt">选择牌阵</span><span></span></div>
+    <p style="font-size:12.5px;color:var(--mist);line-height:1.9;margin-bottom:16px">「${esc(state.question)}」<br>为这个问题选择一种展开方式：</p>
+    ${SPREADS.map(sp=>`
+      <div class="spread" data-id="${sp.id}">
+        ${miniDiagram(sp.id)}
+        <div style="flex:1">
+          <div class="nm">${sp.name}<i class="en">${sp.count} 张 · ${sp.en}</i></div>
+          <div class="ds">${sp.scene}</div>
+          ${sp.hasOptions && state.optOpen===sp.id?`<div class="optrow" style="flex-direction:column;gap:8px">
+              <div style="display:flex;gap:8px"><input class="field" id="optA" placeholder="选项 A" value="${esc(state.optA)}"><input class="field" id="optB" placeholder="选项 B" value="${esc(state.optB)}"></div>
+              <button class="btn small" id="goChoice" style="margin-top:2px">用这个牌阵抽牌</button>
+            </div>`:sp.hasOptions?`<div class="ds" style="color:var(--gold-soft);margin-top:6px">点击后可为两个选项命名</div>`:''}
+        </div>
+      </div>`).join('')}
+  </div>`;
+  document.getElementById('bk').onclick=()=>go('home');
+  const begin=(sp)=>{
+    const a=document.getElementById('optA'),b=document.getElementById('optB');
+    state.spread=sp; state.optA=a?a.value.trim():state.optA; state.optB=b?b.value.trim():state.optB;
+    startDraw();
+  };
+  app.querySelectorAll('.spread').forEach(el=>el.onclick=e=>{
+    if(e.target.id==='optA'||e.target.id==='optB'||e.target.id==='goChoice')return;
+    const sp=SPREADS.find(x=>x.id===el.dataset.id);
+    if(sp.hasOptions && state.optOpen!==sp.id){ state.optOpen=sp.id; renderSpread(); return; }
+    begin(sp);
+  });
+  const gc=document.getElementById('goChoice');
+  if(gc) gc.onclick=()=>begin(SPREADS.find(x=>x.id==='choice'));
+}
+function renderDraw(){
+  const sp=state.spread,n=sp.count,done=state.draws.length;
+  app.innerHTML=`
+  <div class="screen">
+    <div class="topbar"><button class="backlink" id="bk">← 放弃</button><span class="tt">${sp.name}</span>
+      <span class="progress en">${done} / ${n}</span></div>
+    <div class="drawhead"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">「${esc(state.question)}」</span></div>
+    <div class="boardwrap">${boardHTML('')}</div>
+    <div class="deckwrap">
+      <div class="deckhint">${done>=n?'牌已抽满 · 点击下方按钮揭晓':'轻点一张牌 · 左右滑动浏览牌组'}</div>
+      <div class="deck" id="deck">${state.deck.map((cid,i)=>{
+        const mid=(state.deck.length-1)/2;
+        const ang=(i-mid)*1.05, lift=Math.abs(i-mid)*0.42;
+        return `<div class="dcard" data-i="${i}" style="transform:rotate(${ang}deg) translateY(${lift}px)">
+          <div class="back"></div></div>`;}).join('')}</div>
+      ${done>=n?`<button class="btn" id="reveal" style="margin-top:6px">揭 晓 牌 阵</button>`:''}
+    </div>
+  </div>`;
+  document.getElementById('bk').onclick=()=>go('home');
+  const dk=document.getElementById('deck');
+  requestAnimationFrame(()=>{ dk.scrollLeft=(dk.scrollWidth-dk.clientWidth)/2; });
+  dk.addEventListener('pointerup',e=>{
+    const c=document.elementFromPoint(e.clientX,e.clientY);
+    const card=c&&c.closest('.dcard');
+    if(card)drawCard(+card.dataset.i);
+  });
+  const rv=document.getElementById('reveal');
+  if(rv)rv.onclick=()=>go('reveal');
+}
+function renderReveal(){
+  const sp=state.spread;
+  app.innerHTML=`
+  <div class="screen">
+    <div class="topbar"><button class="backlink" id="bk">← 重抽</button><span class="tt">牌阵揭晓</span><span class="progress en">${sp.count} 张</span></div>
+    ${boardHTML('flip')}
+    <div class="orn" style="margin:22px 0 6px">✦</div>
+    <div class="poslist">
+      ${state.draws.map((d,i)=>{const c=byId[d.cardId];return `
+        <div class="positem"><b>${sp.pos[i][0]}</b>
+          <span class="en" style="color:var(--gold-soft);flex:none">${c.name} · ${d.orientation==='reversed'?'逆位':'正位'}</span>
+          <span>${sp.pos[i][1]}</span></div>`;}).join('')}
+    </div>
+    <div class="stickybar"><button class="btn" id="go">开 始 解 读</button></div>
+  </div>`;
+  document.getElementById('bk').onclick=()=>startDraw();
+  document.getElementById('go').onclick=()=>{ state.report=makeReport(); go('reading'); };
+}
+function renderReading(){
+  const r=state.report;
+  app.innerHTML=`
+  <div class="screen">
+    <div class="topbar"><button class="backlink" id="bk">← 牌阵</button><span class="tt">AI 解读</span>
+      <button class="backlink" id="fav">${state.fav?'★ 已收藏':'☆ 收藏'}</button></div>
+    <p style="font-size:12px;color:var(--mist);line-height:1.8">「${esc(r.meta.q)}」<br><span style="opacity:.7">${r.meta.spName} · ${r.meta.opts||''} ${r.meta.date}</span></p>
+    <div class="sec"><h3>核心结论</h3><p>${r.conclusion}</p></div>
+    <div class="sec"><h3>逐张牌面</h3>${r.per.map((c,i)=>{const d=state.draws[i],cd=byId[d.cardId];return `
+      <div class="rccard"><div class="thumb"><img src="${IMG[d.cardId]||('cards/'+d.cardId+'.webp')}" class="${d.orientation==='reversed'?'rev':''}" alt="${cd.name}" onerror="this.style.display='none'"></div>
+      <div style="flex:1"><div class="tt">${c.title}</div><div class="tx">${c.text}</div></div></div>`;}).join('')}</div>
+    <div class="sec"><h3>牌面关联</h3><p>${r.links}</p></div>
+    <div class="sec"><h3>深层洞察</h3><p>${r.insight}</p></div>
+    <div class="sec"><h3>发展趋势</h3><p>${r.trend}</p></div>
+    <div class="sec"><h3>行动建议</h3><ul class="actions">${r.actions.map(x=>`<li>${x}</li>`).join('')}</ul></div>
+    <div class="oneliner">${r.summary}</div>
+    <div style="height:150px"></div>
+    <p class="note">本报告由单文件版本地推演引擎生成：基于问题意图、牌阵位置、正逆位与传统牌义综合推演，非通用模板拼接。完整版可接入大语言模型获得更细腻的解读。</p>
+    <div class="stickybar">
+      <button class="btn" id="ask">继 续 追 问</button>
+      <div style="display:flex;gap:10px">
+        <button class="btn ghost small" id="redo" style="flex:1">重新占卜</button>
+        <button class="btn ghost small" id="share" style="flex:1">复制总结</button>
+        <button class="btn ghost small" id="home" style="flex:1">新的问题</button>
+      </div>
+    </div>
+  </div>`;
+  document.getElementById('bk').onclick=()=>go('reveal');
+  document.getElementById('fav').onclick=()=>{
+    if(!state.fav){ state.history.unshift({q:r.meta.q,spName:r.meta.spName,date:r.meta.date,fav:true,
+      draws:state.draws,report:r,spreadId:r.meta.spreadId,opts:r.meta.opts}); saveHistory(); }
+    state.fav=true; renderReading();
+  };
+  document.getElementById('ask').onclick=()=>{ if(!state.messages.length) state.messages.push({role:'bot',content:'牌面已在桌上。你可以追问任何细节——例如某张牌的含义、最大的阻碍、或「如果……会怎样」。'}); go('chat'); };
+  document.getElementById('redo').onclick=()=>startDraw();
+  document.getElementById('home').onclick=()=>go('home');
+  document.getElementById('share').onclick=()=>{
+    const txt=`【ARCANA 塔罗占卜】\n问题：${r.meta.q}\n牌阵：${r.meta.spName}\n总结：${r.summary}`;
+    (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>{alert('已复制到剪贴板');},()=>{alert(txt);});
+  };
+}
+function renderChat(){
+  app.innerHTML=`
+  <div class="screen">
+    <div class="topbar"><button class="backlink" id="bk">← 解读</button><span class="tt">追 问</span><span></span></div>
+    <div class="msgs" id="msgs">${state.messages.map(m=>`<div class="msg ${m.role}">${esc(m.content)}</div>`).join('')}</div>
+    <div class="chatbar"><input class="field" id="ci" placeholder="关于这次牌面，你还想知道…">
+      <button id="send">送出</button></div>
+  </div>`;
+  const msgs=document.getElementById('msgs'); msgs.scrollTop=msgs.scrollHeight;
+  document.getElementById('bk').onclick=()=>go('reading');
+  const send=()=>{
+    const inp=document.getElementById('ci'); const q=inp.value.trim(); if(!q)return;
+    state.messages.push({role:'user',content:q});
+    state.messages.push({role:'bot',content:chatReply(q)});
+    inp.value=''; renderChat();
+  };
+  document.getElementById('send').onclick=send;
+  document.getElementById('ci').onkeydown=e=>{if(e.key==='Enter')send();};
+}
+function renderHistory(){
+  app.innerHTML=`
+  <div class="screen">
+    <div class="topbar"><button class="backlink" id="bk">← 首页</button><span class="tt">历史占卜</span>
+      <button class="backlink" id="clr">清空</button></div>
+    ${state.history.length? state.history.map((h,i)=>`
+      <div class="hitem" data-i="${i}">
+        <div class="hq">${h.fav?'★ ':''}${esc(h.q)}</div>
+        <div class="hm"><span>${h.spName}${h.opts||''}</span><span>${h.date}</span></div>
+      </div>`).join('')
+    :`<div class="empty">还没有占卜记录<br>收藏过的解读会出现在这里</div>`}
+  </div>`;
+  document.getElementById('bk').onclick=()=>go('home');
+  document.getElementById('clr').onclick=()=>{ if(confirm('清空全部历史记录？')){state.history=[];saveHistory();renderHistory();} };
+  app.querySelectorAll('.hitem').forEach(el=>el.onclick=()=>{
+    const h=state.history[+el.dataset.i];
+    state.question=h.q; state.spread=SPREADS.find(s=>s.id===h.spreadId)||SPREADS[0];
+    state.draws=h.draws; state.report=h.report; state.fav=true; state.viewOnly=true;
+    go('reading');
+  });
+}
+/* 星空 */
+(function(){const st=document.getElementById('stars');let h='';
+  for(let i=0;i<46;i++){const x=Math.random()*100,y=Math.random()*100,s=Math.random()*1.6+.6,o=Math.random()*.5+.15,d=(Math.random()*4+3).toFixed(1);
+  h+=`<span style="position:absolute;left:${x}%;top:${y}%;width:${s}px;height:${s}px;border-radius:50%;background:#e8dcc0;opacity:${o};animation:glow ${d}s ease infinite"></span>`;}
+  st.innerHTML=h;})();
+render();
+</script>
+</body>
+</html>
